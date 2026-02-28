@@ -3,7 +3,11 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from static_backend import app as langgraph_app
+from static_backend import app as langgraph_app, key_manager
+from groq_key_manager import AllKeysExhaustedError
+import logging
+
+logger = logging.getLogger(__name__)
 
 fastapi_app = FastAPI()
 
@@ -47,7 +51,22 @@ async def analyze_code(files: List[UploadFile] = File(...)):
                 "report": result["final_report"],
                 "fixed_code": result["fixed_code"]
             })
+
+        except AllKeysExhaustedError as e:
+            # All API keys are rate-limited — stop processing further files
+            logger.error("All API keys exhausted while processing '%s': %s", file.filename, e)
+            results.append({
+                "filename": file.filename,
+                "report": (
+                    "⚠️ All available Groq API keys have been rate-limited. "
+                    "Processing stopped at this file. Please wait a few minutes and try again."
+                ),
+                "fixed_code": ""
+            })
+            break  # no point trying remaining files
+
         except Exception as e:
+            logger.exception("Error processing '%s'", file.filename)
             results.append({
                 "filename": file.filename,
                 "report": f"Error processing file: {str(e)}",

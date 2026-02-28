@@ -1,7 +1,7 @@
 from typing import TypedDict, Optional
-from langchain_groq import ChatGroq
-from langgraph.graph import StateGraph,START, END
+from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
+from groq_key_manager import GroqKeyManager, AllKeysExhaustedError
 
 
 load_dotenv()
@@ -20,9 +20,12 @@ class CodeReviewState(TypedDict):
 
 
 
-llm = ChatGroq(
-    model="openai/gpt-oss-20b", 
-    temperature=0
+# Shared key manager — handles automatic rotation on rate-limit errors
+key_manager = GroqKeyManager(
+    model="openai/gpt-oss-20b",
+    temperature=0,
+    max_retries_per_key=1,
+    cooldown_seconds=5.0,
 )
 
 
@@ -44,8 +47,8 @@ Code:
 {state['code']}
 """
 
-    response = llm.invoke(prompt)
-    return {"style_report": response.content}
+    content = key_manager.invoke(prompt)
+    return {"style_report": content}
 
 
 
@@ -64,8 +67,8 @@ Code:
 {state['code']}
 """
 
-    response = llm.invoke(prompt)
-    return {"type_report": response.content}
+    content = key_manager.invoke(prompt)
+    return {"type_report": content}
 
 
 
@@ -87,8 +90,8 @@ Code:
 {state['code']}
 """
 
-    response = llm.invoke(prompt)
-    return {"security_report": response.content}
+    content = key_manager.invoke(prompt)
+    return {"security_report": content}
 
 
 
@@ -108,8 +111,8 @@ Code:
 {state['code']}
 """
 
-    response = llm.invoke(prompt)
-    return {"complexity_report": response.content}
+    content = key_manager.invoke(prompt)
+    return {"complexity_report": content}
 
 
 
@@ -128,8 +131,8 @@ Code:
 {state['code']}
 """
 
-    response = llm.invoke(prompt)
-    return {"documentation_report": response.content}
+    content = key_manager.invoke(prompt)
+    return {"documentation_report": content}
 
 
 
@@ -157,8 +160,8 @@ Generate:
 4. Actionable Recommendations
 """
 
-    response = llm.invoke(prompt)
-    return {"final_report": response.content}
+    content = key_manager.invoke(prompt)
+    return {"final_report": content}
 
 
 
@@ -178,8 +181,8 @@ AUDIT REPORT:
 Return ONLY the improved corrected code.
 """
 
-    response = llm.invoke(prompt)
-    return {"fixed_code": response.content}
+    content = key_manager.invoke(prompt)
+    return {"fixed_code": content}
 
 
 

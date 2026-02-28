@@ -137,6 +137,22 @@ pre {
     border: 1px solid #c53030;
 }
 
+.skip-info {
+    background: #2a4365;
+    color: #bee3f8;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #3182ce;
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.skip-info strong {
+    color: #90cdf4;
+}
+
 .hidden {
     display: none;
 }

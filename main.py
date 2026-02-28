@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from static_backend import app as langgraph_app, key_manager
 from groq_key_manager import AllKeysExhaustedError
+from scan_config import should_skip_file, SKIP_FOLDERS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,13 +30,26 @@ async def serve_frontend():
     return FileResponse("static/index.html")
 
 
+@fastapi_app.get("/skip-folders")
+async def get_skip_folders():
+    """Return the list of folder names that should be skipped during scanning."""
+    return {"skip_folders": [f.lower() for f in SKIP_FOLDERS]}
+
+
 @fastapi_app.post("/analyze")
 async def analyze_code(files: List[UploadFile] = File(...)):
     results = []
+    skipped_count = 0
     
     for file in files:
         # Skip non-Python files
         if not file.filename.endswith(".py"):
+            continue
+        
+        # Skip files inside excluded folders (server-side safety net)
+        if should_skip_file(file.filename):
+            skipped_count += 1
+            logger.info("Skipped file from excluded folder: %s", file.filename)
             continue
         
         try:

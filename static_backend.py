@@ -2,12 +2,27 @@ from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 from groq_key_manager import GroqKeyManager, AllKeysExhaustedError
+import threading
 
 
 load_dotenv()
 
+# Thread-safe status tracking
+status_lock = threading.Lock()
+current_status = {"agent": None, "filename": None}
+
+def set_status(agent_name: str, filename: str):
+    global current_status
+    with status_lock:
+        current_status = {"agent": agent_name, "filename": filename}
+
+def get_status():
+    with status_lock:
+        return current_status.copy()
+
 class CodeReviewState(TypedDict):
     code: str
+    filename: str
     
     style_report: Optional[str]
     type_report: Optional[str]
@@ -33,6 +48,7 @@ key_manager = GroqKeyManager(
 ############################## FUNCTIONS ############################################################
 
 def style_linting_agent(state: CodeReviewState):
+    set_status("Style Analyzer", state['filename'])
     prompt = f"""
 You are a professional static code style analyzer.
 
@@ -54,6 +70,7 @@ Code:
 
 
 def type_checking_agent(state: CodeReviewState):
+    set_status("Type Checker", state['filename'])
     prompt = f"""
 Perform static type analysis:
 
@@ -75,6 +92,7 @@ Code:
 
 
 def security_agent(state: CodeReviewState):
+    set_status("Security Analyzer", state['filename'])
     prompt = f"""
 Perform static security analysis.
 
@@ -97,6 +115,7 @@ Code:
 
 
 def complexity_agent(state: CodeReviewState):
+    set_status("Complexity Analyzer", state['filename'])
     prompt = f"""
 Analyze code complexity.
 
@@ -118,6 +137,7 @@ Code:
 
 
 def documentation_agent(state: CodeReviewState):
+    set_status("Documentation Analyzer", state['filename'])
     prompt = f"""
 Review documentation quality:
 
@@ -138,6 +158,7 @@ Code:
 
 
 def report_agent(state: CodeReviewState):
+    set_status("Report Generator", state['filename'])
     prompt = f"""
 Create a professional structured code audit report.
 
@@ -167,6 +188,7 @@ Generate:
 
 
 def code_fixer_agent(state: CodeReviewState):
+    set_status("Code Fixer", state['filename'])
     prompt = f"""
 You are a senior software engineer.
 

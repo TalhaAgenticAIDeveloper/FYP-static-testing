@@ -7,10 +7,15 @@ from static_backend import app as langgraph_app, key_manager
 from groq_key_manager import AllKeysExhaustedError
 from scan_config import should_skip_file, SKIP_FOLDERS
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
 fastapi_app = FastAPI()
+
+# Thread pool for blocking operations
+executor = ThreadPoolExecutor(max_workers=2)
 
 # Enable CORS
 fastapi_app.add_middleware(
@@ -36,6 +41,14 @@ async def get_skip_folders():
     return {"skip_folders": [f.lower() for f in SKIP_FOLDERS]}
 
 
+@fastapi_app.get("/workflow-status")
+async def workflow_status():
+    """Return the current active agent and file being analyzed."""
+    from static_backend import get_status
+    status = get_status()
+    return status
+
+
 @fastapi_app.post("/analyze")
 async def analyze_code(files: List[UploadFile] = File(...)):
     results = []
@@ -57,8 +70,15 @@ async def analyze_code(files: List[UploadFile] = File(...)):
             content = await file.read()
             file_content = content.decode("utf-8")
             
-            # Pass to LangGraph workflow
-            result = langgraph_app.invoke({"code": file_content})
+            # Pass to LangGraph workflow with filename (run in thread pool to avoid blocking)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                executor,
+                lambda: langgraph_app.invoke({
+                    "code": file_content,
+                    "filename": file.filename
+                })
+            )
             
             results.append({
                 "filename": file.filename,

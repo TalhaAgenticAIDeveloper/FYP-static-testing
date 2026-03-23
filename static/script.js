@@ -138,6 +138,22 @@ uploadBtn.addEventListener('click', async () => {
     loading.classList.remove('hidden');
     uploadBtn.disabled = true;
 
+    // Start polling status every 300ms
+    let statusInterval = setInterval(async () => {
+        try {
+            const statusRes = await fetch('/workflow-status');
+            const status = await statusRes.json();
+            if (status.filename) {
+                document.getElementById('currentFile').textContent = status.filename;
+            }
+            if (status.agent) {
+                document.getElementById('currentAgent').textContent = status.agent;
+            }
+        } catch (err) {
+            console.log('Status polling error:', err);
+        }
+    }, 300);
+
     try {
         const formData = new FormData();
         selectedFiles.forEach(file => {
@@ -188,6 +204,7 @@ uploadBtn.addEventListener('click', async () => {
         error.textContent = err.message;
         error.classList.remove('hidden');
     } finally {
+        clearInterval(statusInterval);
         loading.classList.add('hidden');
         uploadBtn.disabled = false;
     }
